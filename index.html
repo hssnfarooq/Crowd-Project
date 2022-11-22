@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+    <title>Crowding</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        font-family: inherit;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        line-height: 1.5;
+        color: #333333;
+        padding-bottom: 15px;
+      }
+
+      .container {
+        max-width: 992px;
+        width: min(100% - 25px);
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 32px;
+        font-weight: bold;
+        text-align: center;
+        text-transform: capitalize;
+        margin-top: 15px;
+        margin-bottom: 15px;
+        color: #5f9ea0;
+        border: 5px double #333333;
+      }
+
+      .fields {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px 50px;
+        flex-wrap: wrap;
+        margin-top: 25px;
+      }
+
+      .field-group {
+        flex: 1 1 47%;
+      }
+
+      .field-group label {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 5px;
+        color: #5f9ea0;
+      }
+
+      .field-group select {
+        width: 100%;
+        padding: 10px 2.5px;
+        border: 1px solid #cccccc;
+        border-radius: 5px;
+        font-size: 16px;
+        color: inherit;
+      }
+
+      button {
+        display: block;
+        width: 100%;
+        padding: 14px 2.5px;
+        background-color: #f2f2f2;
+        color: #5f9ea0;
+        border: 2px solid #5f9ea0;
+        font-size: 16px;
+        margin-top: 25px;
+        border-radius: 5px;
+
+        cursor: pointer;
+      }
+
+      .chart-container {
+        width: min(100% - 25px);
+        margin: 0 auto;
+        margin: 50px 0;
+      }
+
+      span {
+        display: block;
+        text-align: center;
+        color: #5f9ea0;
+      }
+
+      table {
+        font-family: Arial, Helvetica, sans-serif;
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      table td,
+      table th {
+        border: 1px solid #cccccc;
+        padding: 8px;
+        text-align: center;
+      }
+
+      table tr:nth-child(even) {
+        background-color: #f2f2f2;
+      }
+
+      table th {
+        padding-top: 10px;
+        font-size: 18px;
+        padding-bottom: 10px;
+        background-color: #5f9ea0;
+        color: #ffffff;
+        border: 5px solid rgba(95, 158, 160, 0.8);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>View crowding info at tube stations</h1>
+      <p>
+        Welcome to the website. Here you can view the crowding at tube stations
+        in London. You can also view the crowding at a specific station. To view
+        the crowding at a specific station, select the station name and
+        corresponding day of the week below and click the show results button.
+      </p>
+      <div class="fields">
+        <div class="field-group">
+          <label for="station">Please Select Tube Station</label>
+          <select name="station" id="station">
+            <option value="940GZZLUPAC">Paddington</option>
+            <option value="940GZZLUKSX">King’s Cross St Pancras</option>
+            <option value="940GZZLUEUS">Euston</option>
+            <option value="940GZZLUWLO">Waterloo</option>
+            <option value="940GZZLULNB">London Bridge</option>
+            <option value="940GZZLULVT">Liverpool Street</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="day">Please Select Day</label>
+          <select name="day" id="day">
+            <option value="mon">Monday</option>
+            <option value="tue">Tuesday</option>
+            <option value="wed">Wednesday</option>
+            <option value="thu">Thursday</option>
+            <option value="fri">Friday</option>
+            <option value="sat">Saturday</option>
+            <option value="sun">Sunday</option>
+          </select>
+        </div>
+      </div>
+      <button id="show">Show Results</button>
+    </div>
+    <div class="chart-container">
+      <canvas id="myChart"></canvas>
+    </div>
+    <div class="container">
+      <span id="amPeak"></span>
+      <span id="pmPeak"></span>
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Crowding</th>
+          </tr>
+        </thead>
+        <tbody id="peakLevels"></tbody>
+      </table>
+    </div>
+  </body>
+  <script>
+    const show = document.getElementById('show');
+    const chart = document.getElementById('myChart');
+    show.addEventListener('click', function () {
+      // extracts the tube station and naptan ID
+      const naptan = document.getElementById('station').value;
+      const day = document.getElementById('day').value;
+
+      // The query (constructed URL) is then sent to the TfL API, through an asynchronous AJAX call, and the response is handled by another function.
+      const url = `https://api.tfl.gov.uk/crowding/${naptan}/${day}`;
+      var app_key = '0b6fbd418ca14373bb6513a718d18732';
+
+      // destroy the chart if it already exists
+      if (Chart.getChart(chart)) {
+        Chart.getChart(chart).destroy();
+      }
+      // make the ajax call
+      $.ajax({
+        url: url,
+        type: 'GET',
+        headers: {
+          app_id: app_key,
+          app_key: app_key,
+        },
+        success: function (data) {
+          // constructing labels and crowding arrays
+          var labels = data.timeBands.map(item => item.timeBand);
+          var crowding = data.timeBands.map(
+            item => item.percentageOfBaseLine * 100
+          );
+
+          // A bar chart, using chart.js version 3, is created showing the capacity levels as percentages (i.e., multiply by 100) in 15-minute increments throughout the selected day of the week.
+          const ctx = document.getElementById('myChart').getContext('2d');
+          const myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'Crowding',
+                  data: crowding,
+                  backgroundColor: 'rgba(95, 158, 160, 0.2)',
+                  borderColor: 'rgba(95, 158, 160, 1)',
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  min: 0,
+                  max: 100,
+                },
+              },
+            },
+          });
+
+          // displays the AM and PM peak time frame, as returned by the API.
+          const amPeak = document.getElementById('amPeak');
+          const pmPeak = document.getElementById('pmPeak');
+
+          amPeak.innerHTML = `AM Peak: ${data.amPeakTimeBand}`;
+          pmPeak.innerHTML = `PM Peak: ${data.pmPeakTimeBand}`;
+
+          // displays the capacity levels as percentages in 15-minute increments throughout the selected day of the week
+          const peakLevels = document.getElementById('peakLevels');
+          peakLevels.innerHTML = '';
+          data.timeBands.forEach(timeBand => {
+            const row = document.createElement('tr');
+            const timeBandCell = document.createElement('td');
+            const percentageOfBaseLineCell = document.createElement('td');
+            timeBandCell.innerHTML = timeBand.timeBand;
+            percentageOfBaseLineCell.innerHTML =
+              (timeBand.percentageOfBaseLine * 100).toFixed(2) + '%';
+            row.appendChild(timeBandCell);
+            row.appendChild(percentageOfBaseLineCell);
+            peakLevels.appendChild(row);
+          });
+        },
+      });
+    });
+  </script>
+</html>
